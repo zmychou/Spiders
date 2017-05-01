@@ -8,8 +8,6 @@ import requests
 import time
 import csv
 
-#requests.get(baseUrl+"/tag/编程?start=40&type=T")
-
 def hasNextPage(obj):
 
     try:
@@ -29,7 +27,8 @@ def findAllTag(base, offset, debug):
 
     dom = requests.get(url).content
     obj = BeautifulSoup(dom)
-    aTags = obj.findAll("a", href = re.compile("^\/tag\/.*$"))
+    category = obj.find('a', {'name':'类型'}).next_sibling.next_sibling
+    aTags = category.findAll("a", href = re.compile("^\/tag\/.*$"))
     tags = []
     for tag in aTags:
         href = tag.attrs["href"]
@@ -44,31 +43,41 @@ def findAllTag(base, offset, debug):
 
 def parsePage(writer, obj, debug):
     '''Crawling all data we want at the specific url offset'''
-    items = obj.findAll("li",{"class":"subject-item"})
+    items = obj.findAll("div",{"class":"pl2"})
     for item in items:
         try:
-            title = item.find("div", {"class":"info"}).h2.a.attrs["title"]
-            subTitle = item.find("div", {"class":"info"}).span.text
-            detail = item.find("div", {"class":"pub"}).text.strip()
+            url = item.a.attrs['href']
+            titles = item.a.text.strip()
+            title = titles.split('/')[0].strip()
+            text = item.p.text
+            upTime = re.findall(r'[0-9,-]{10}', text)
+            date = []
+            if len(upTime) > 0:
+
+                date = upTime[0].split('-')
+            else:
+                date = ['','','']
+
+            duration = re.findall(r'[0-9]{3}分钟', text)
+            if len(duration) > 0:
+                duration = duration[0].strip().split('分')
+            else:
+                duration.append('unknown')
             pl = item.find("span", {"class":"pl"}).text.strip()
             rating_num = item.find("span", {"class":"rating_nums"}).text
-            details = detail.split('/')
-            if len(details) < 4:
-                for i in range(5):
-                    details.append(" ")
-            if len(details) == 4:
-                details.insert(1, " ")
 
-            itm = [title, subTitle, details[0], details[1], details[2], \
-                    details[3], details[4], rating_num, pl, debug]
+            itm = [url, title, date[0], date[1], date[2], duration[0],\
+                    rating_num, pl, debug]
             writer.writerow(itm)
             print(title)
         except AttributeError as e:
             print("Something wrong,but we will continue!")
+        except IndexError as e:
+            pass
 
 def main():
     '''主函数'''
-    baseUrl = "https://book.douban.com"
+    baseUrl = "https://movie.douban.com"
     offset = "/tag/"
     debug = True
     tags = findAllTag(baseUrl, offset, debug)            
@@ -86,18 +95,14 @@ def main():
             obj = BeautifulSoup(dom)
             parsePage(writer, obj, classify)
             print(tag)
-            time.sleep(4)
+            time.sleep(7)
             nextOne = hasNextPage(obj)
             while  nextOne is not None:
 
-                classifies = nextOne.split('/')
-                classifies = classifies[2].split('?')
-                classify = classifies[0]
-                url = baseUrl + nextOne
-                dom = requests.get(url).content
+                dom = requests.get(nextOne).content
                 obj = BeautifulSoup(dom)
                 parsePage(writer, obj, classify)
-                time.sleep(4)
+                time.sleep(6)
                 nextOne = hasNextPage(obj)
     finally:
         csvFile.close();

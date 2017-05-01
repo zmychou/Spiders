@@ -8,8 +8,6 @@ import requests
 import time
 import csv
 
-#requests.get(baseUrl+"/tag/编程?start=40&type=T")
-
 def hasNextPage(obj):
 
     try:
