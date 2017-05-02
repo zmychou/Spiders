@@ -1,5 +1,4 @@
 
-
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
@@ -8,8 +7,16 @@ import requests
 import time
 import csv
 
-def hasNextPage(obj):
+pool = set()
 
+def filter(candidate):
+    prev = len(pool)
+    pool.add(candidate)
+    current = len(candidate)
+    return prev == current
+
+
+def hasNextPage(obj):
     try:
         target = obj.find("span",{"class":"thispage"}).next_sibling.next_sibling
         if target is not None:
@@ -37,41 +44,77 @@ def findAllTag(base, offset, debug):
             print(href)
     return tags            
 
-#def saveData(fileName, itme):
-    
-
-
 def parsePage(writer, obj, debug):
     '''Crawling all data we want at the specific url offset'''
     items = obj.findAll("div",{"class":"pl2"})
     for item in items:
         try:
             url = item.a.attrs['href']
-            titles = item.a.text.strip()
-            title = titles.split('/')[0].strip()
-            text = item.p.text
-            upTime = re.findall(r'[0-9,-]{10}', text)
-            date = []
-            if len(upTime) > 0:
+            urlContent = url.split('/')
+            offset = urlContent[len(urlContent) - 2]
+            if filter(offset):
+                print('Duplicate item...')
+                continue
+            html = requests.get(url).content
+            soup = BeautifulSoup(html)
+            title = soup.find('span',{'property':'v:itemreviewed'})
+            text = title.next_sibling.next_sibling.text
+            title = title.text.strip()
+            year = re.findall(r'[0-9]{4}', text)
+            rating_num = soup.find('strong',{'property':'v:average'}).text
+            votes = soup.find('span',{'property':'v:votes'}).text
+            tags_body = soup.find('div',{'class':'tags-body'})
+            tags = tags_body.findAll('a')
+            runtime = soup.find('span',{'property':'v:runtime'})
+            directories = soup.findAll('a',{'rel':'v:directedBy'})
+            stars = soup.findAll('a',{'rel':'v:starring'})
+            genress = soup.findAll('span',{'property':'v:genre'})
+            official_site = soup.find('div',{'class':'subject clearfix'})\
+                    .find('div',{'id':'info'})\
+                    .findAll('a',{'rel':'nofollow'})
 
-                date = upTime[0].split('-')
+            info = []
+            if len(official_site) > 1: 
+                contry = official_site[0].next_sibling.next_sibling.next_sibling.next_sibling
+                lang = contry.next_sibling.next_sibling.next_sibling.next_sibling
+                info.append(contry)
+                info.append(lang)
             else:
-                date = ['','','']
+                contry = genress[len(genress) - 1].next_sibling.next_sibling.next_sibling.next_sibling
 
-            duration = re.findall(r'[0-9]{3}分钟', text)
-            if len(duration) > 0:
-                duration = duration[0].strip().split('分')
+                lang = contry.next_sibling.next_sibling.next_sibling.next_sibling
+                info.append(contry)
+                info.append(lang)
+
+            directors = []
+            if len(directories) < 2:
+                for director in directories:
+                    directors.append(director.text)
+                directors.append(' ')
+            genres = []
+            if len(genress) < 4:
+                for genre in genress:
+                    genres.append(genre.text)
+                genres.append(' ')
+                genres.append(' ')
+                genres.append(' ')
+                genres.append(' ')
+            vidioType = 'movie'
+            if runtime is None:
+                vidioType = 'series'
+                runtime = 'unknown'
             else:
-                duration.append('unknown')
-            pl = item.find("span", {"class":"pl"}).text.strip()
-            rating_num = item.find("span", {"class":"rating_nums"}).text
-
-            itm = [url, title, date[0], date[1], date[2], duration[0],\
-                    rating_num, pl, debug]
+                runtime = runtime.attrs['content']
+            itm = [url, title, year[0], rating_num, votes,\
+                    runtime, directors[0], directors[1], \
+                    stars[0].text, stars[1].text, stars[2].text, stars[3].text, stars[4].text,\
+                    genres[0], genres[1], genres[2], genres[3], \
+                    info[0], info[1], vidioType]
             writer.writerow(itm)
             print(title)
+            time.sleep(2)
         except AttributeError as e:
-            print("Something wrong,but we will continue!")
+            print("Some thing wrong,but we will continue!")
         except IndexError as e:
             pass
 
@@ -82,7 +125,7 @@ def main():
     debug = True
     tags = findAllTag(baseUrl, offset, debug)            
     
-    csvFile = open("files/test.csv", "w+", encoding='utf-8')
+    csvFile = open("files/data.csv", "w+", encoding='utf-8')
     try:
         writer = csv.writer(csvFile)
         for tag in tags:
@@ -95,14 +138,14 @@ def main():
             obj = BeautifulSoup(dom)
             parsePage(writer, obj, classify)
             print(tag)
-            time.sleep(7)
+            time.sleep(3)
             nextOne = hasNextPage(obj)
             while  nextOne is not None:
 
                 dom = requests.get(nextOne).content
                 obj = BeautifulSoup(dom)
                 parsePage(writer, obj, classify)
-                time.sleep(6)
+                time.sleep(3)
                 nextOne = hasNextPage(obj)
     finally:
         csvFile.close();
