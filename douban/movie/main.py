@@ -2,17 +2,21 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
+from CsvReader import CsvReader
+
 import re
 import requests
 import time
 import csv
 
-pool = set()
+#pool = set()
+c = CsvReader('files/data.csv')
+pool = c.getOffset()
 
 def filter(candidate):
     prev = len(pool)
     pool.add(candidate)
-    current = len(candidate)
+    current = len(pool)
     return prev == current
 
 
@@ -46,6 +50,7 @@ def findAllTag(base, offset, debug):
 
 def parsePage(writer, obj, debug):
     '''Crawling all data we want at the specific url offset'''
+
     items = obj.findAll("div",{"class":"pl2"})
     for item in items:
         try:
@@ -53,7 +58,7 @@ def parsePage(writer, obj, debug):
             urlContent = url.split('/')
             offset = urlContent[len(urlContent) - 2]
             if filter(offset):
-                print('Duplicate item...')
+                print('Duplicace item...')
                 continue
             html = requests.get(url).content
             soup = BeautifulSoup(html)
@@ -124,8 +129,9 @@ def main():
     offset = "/tag/"
     debug = True
     tags = findAllTag(baseUrl, offset, debug)            
+    tags.pop(0)
     
-    csvFile = open("files/data.csv", "w+", encoding='utf-8')
+    csvFile = open("files/data.csv", "a+", encoding='utf-8')
     try:
         writer = csv.writer(csvFile)
         for tag in tags:
