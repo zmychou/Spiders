@@ -129,7 +129,9 @@ def main():
     offset = "/tag/"
     debug = True
     tags = findAllTag(baseUrl, offset, debug)            
-    tags.pop(0)
+    num = input('How much tags will you skip:')
+    for i in range(int(num)):
+        tags.pop(0)
     
     csvFile = open("files/data.csv", "a+", encoding='utf-8')
     try:
