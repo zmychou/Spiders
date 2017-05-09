@@ -1,6 +1,5 @@
 
-num = raw_input()
-print(type(num))
+from Tieba import Tieba
 
-for i in range(int(num)):
-    print num
+tieba = Tieba()
+tieba.main()

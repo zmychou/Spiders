@@ -2,6 +2,8 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
+from package.NumBloom import filtration
+
 import re
 import time
 

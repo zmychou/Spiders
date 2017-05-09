@@ -1,2 +1,7 @@
-
+*.js
+*.js~
+*.csv~
 *.csv
+*~
+__pycache__/
+
