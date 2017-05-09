@@ -105,6 +105,7 @@ class Tieba():
                             'Accept':'application/json',
                             'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36'}
                     detail = requests.get('http://tieba.baidu.com/home/get/panel?un=' + name_u).text
+                    try :
                     detail = json.loads(detail)
                     tb_age = detail['data']['tb_age']
                     post_num = detail['data']['post_num']
@@ -120,6 +121,8 @@ class Tieba():
                             user.append(i)
                             user.append(grade[i]['forum_list'])
                     user_writer.writerow(user)
+                    except KeyError as e :
+                        continue
             exist = self.hasNext(bsObj, 'tP')
             if exist is None :
                 break
