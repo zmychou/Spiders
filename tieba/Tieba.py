@@ -28,10 +28,10 @@ class Tieba():
     
     def getPosts(self, bsObj) :
         '''Get all post in one page'''
-        hrefs = bsObj.findAll('a', {'class':'j_th_tit'})
+        hrefs = bsObj.findAll('a',{'class':'j_th_tit'})
+        self.posts.clear()
         for href in hrefs :
             self.posts.append(href.attrs['href'])
-
 
     def hasNext(self, bsObj, pageType) :
         '''Denote whether there are any page to be crawl'''
@@ -51,7 +51,7 @@ class Tieba():
         current = len(self.user)
         return prev == current
 
-    def specificPost(self, item_writer, user_writer, urlOffset) :
+    def specificPost(self, item_writer, user_writer, postWriter, urlOffset) :
         '''Get the specific post and crawl all the user's info,including user_id,
         uset_name e.g, and all the the reply''' 
         headers = {
@@ -67,86 +67,107 @@ class Tieba():
                 }
         html = requests.get('http://tieba.baidu.com/' + urlOffset, headers = headers).text
         print(urlOffset)
+        bsObj = BeautifulSoup(html)
+        try :
+            reply_num = bsObj.find('li',{'class':'l_reply_num'}).span.text
+            head = bsObj.find('div',{'class':'user-hide-post-position'}).parent.attrs['data-field']
+            head = json.loads(head) 
+            post_date = head['content']['date'].split(' ')
+            post_author = head['author']['user_name']
+            heads = []
+            heads.append(post_author)
+            heads.append(reply_num)
+            heads.append(post_date[0])
+            heads.append(post_date[1])
+            postWriter.writerow(heads)
+        except KeyError as e :
+            pass
         while True :
-            bsObj = BeautifulSoup(html)
             answers = bsObj.findAll('div',{'class':'user-hide-post-position'})
             for answer in answers :
-                row = []
-                user = []
-                data = json.loads(answer.parent.attrs['data-field'])
-                user_id = data['author']['user_id']
-                name_u = data['author']['name_u']
-                user_sex = data['author']['user_sex']
-                level_id = data['author']['level_id']
-                open_id = data['content']['open_id']
-                open_type = data['content']['open_type']
-                user_name = data['author']['user_name']
-                date = data['content']['date'].split(' ')
-                row.append(user_id)
-                row.append(user_sex)
-                row.append(user_name)
-                row.append(name_u)
-                row.append(level_id)
-                row.append(open_id)
-                row.append(open_type)
-                row.append(date[0])
-                row.append(date[1])
-                item_writer.writerow(row)
-                print(user_name)
-    
-                if self.filtration(user_id) is not True :
-                    user.append(name_u)
-                    user.append(open_id)
-                    user.append(open_type)
-                    user.append(user_id)
-                    user.append(user_sex)
-                    user.append(user_name)
-                    header = {
-                            'Accept':'application/json',
-                            'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36'}
-                    detail = requests.get('http://tieba.baidu.com/home/get/panel?un=' + name_u).text
-                    try :
-                    detail = json.loads(detail)
-                    tb_age = detail['data']['tb_age']
-                    post_num = detail['data']['post_num']
-                    sex = detail['data']['sex']
-                    grade = detail['data']['honor']['grade']
-                    user.append(tb_age)
-                    user.append(post_num)
-                    user.append(sex)
-                    user.append(date[0])
-                    user.append(date[1])
-                    if grade is not None :
-                        for i in grade :
-                            user.append(i)
-                            user.append(grade[i]['forum_list'])
-                    user_writer.writerow(user)
-                    except KeyError as e :
-                        continue
+                try :
+                    row = []
+                    user = []
+                    data = json.loads(answer.parent.attrs['data-field'])
+                    user_id = data['author']['user_id']
+                    name_u = data['author']['name_u']
+                    user_sex = data['author']['user_sex']
+                    level_id = data['author']['level_id']
+                    open_id = data['content']['open_id']
+                    open_type = data['content']['open_type']
+                    user_name = data['author']['user_name']
+                    date = data['content']['date'].split(' ')
+                    row.append(user_id)
+                    row.append(user_sex)
+                    row.append(user_name)
+                    row.append(name_u)
+                    row.append(level_id)
+                    row.append(open_id)
+                    row.append(open_type)
+                    row.append(date[0])
+                    row.append(date[1])
+                    item_writer.writerow(row)
+                    print(user_name)
+        
+                    if self.filtration(user_id) is not True :
+                        user.append(name_u)
+                        user.append(open_id)
+                        user.append(open_type)
+                        user.append(user_id)
+                        user.append(user_sex)
+                        user.append(user_name)
+                        header = {
+                                'Accept':'application/json',
+                                'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36'}
+                        detail = requests.get('http://tieba.baidu.com/home/get/panel?un=' + name_u).text
+                        detail = json.loads(detail)
+                        tb_age = detail['data']['tb_age']
+                        post_num = detail['data']['post_num']
+                        sex = detail['data']['sex']
+                        grade = detail['data']['honor']['grade']
+                        user.append(tb_age)
+                        user.append(post_num)
+                        user.append(sex)
+                        user.append(date[0])
+                        user.append(date[1])
+                        if grade is not None :
+                            for i in grade :
+                                user.append(i)
+                                user.append(grade[i]['forum_list'])
+                        user_writer.writerow(user)
+                except KeyError as e :
+                    continue
+                except TypeError as e :
+                    continue
+                except AttributeError as e :
+                    continue
             exist = self.hasNext(bsObj, 'tP')
             if exist is None :
                 break
             time.sleep(2)
             print(exist)
             html = requests.get('http://tieba.baidu.com/p/'+exist).text
+            bsObj = BeautifulSoup(html)
             print('next page..........................')
 
     def main(self) :
         '''Main function,just call it and you just need to input the tieba name 
         such as 燕山大学,the you will get two files :user_info.csv and 
         answer_item.csv'''
-        item = open('answer_itme.csv', 'w+')
-        user = open('user_info.csv', 'w+')
+        tieba = input('Input the tieba you what to craw:')
+        item = open(tieba+'answer_itme.csv', 'w+')
+        user = open(tieba+'user_info.csv', 'w+')
+        post = open(tieba+'post_head.csv', 'w+')
         answer_item = csv.writer(item)
         user_info = csv.writer(user)
-        tieba = input('Input the tieba you what to craw:')
+        post_head = csv.writer(post)
         bsObj = self.entrance(tieba)
         exist = self.hasNext(bsObj, 'pagination-current pagination-item ')
         while True :
 
             self.getPosts(bsObj)       
             for post in self.posts :
-                self.specificPost(answer_item, user_info, post)
+                self.specificPost(answer_item, user_info, post_head, post)
             exist = self.hasNext(bsObj, 'pagination-current pagination-item ')
             if exist is None :
                 break
