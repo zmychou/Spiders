@@ -9,13 +9,15 @@ This is a repository for web scraping practice.
 
 ### Usage
 1. douban
-Download the files in the *douban* directory and then execute the follow command:
->python3 main.py
+Download the files in the **douban** directory and then execute the follow command:
+> python3 main.py
+
 that will start the crawling proccess to crawl douban data
 
 2. tieba
-Download the files in the tieba directory, then run the command:
+Download the files in the **tieba** directory, then run the command:
 > python3 main.py
+
 then specify which forum you want to craw, it will generate three files,which contain the user info, post info and reply info ,respectively.
 
 ### TO-DO
